@@ -345,22 +345,26 @@ static void verifyIPArguments(int argc, char *argv[]) {
 static ipaddr *getSubnetMasksFromArguments(int argc, char *argv[]) {
     ipaddr *returnArray = (ipaddr *)malloc(sizeof(ipaddr) * 2);
     ipaddr subnetMask1;
-    if (isCIDRMask(atoi(argv[2])))
+    if (isCIDRMask(atoi(argv[2]))) {
         subnetMask1 = CIDRToSubnetMask(atoi(argv[2]));
-    else
+    }
+    else {
         subnetMask1 = constructIP(argv[2]);
         if (!isSubnetMask(subnetMask1))
             usage("First argument is not a valid subnet mask");
+    }
     ipaddr subnetMask2;
     if (argc == 3)
         subnetMask2.IP = subnetMask1.IP;
     else
-        if (isCIDRMask(atoi(argv[3])))
+        if (isCIDRMask(atoi(argv[3]))) {
             subnetMask2 = CIDRToSubnetMask(atoi(argv[3]));
-        else
+        }
+        else {
             subnetMask2 = constructIP(argv[3]);
             if (!isSubnetMask(subnetMask2))
                 subnetMask2.IP = subnetMask1.IP;
+        }
     returnArray[0] = subnetMask1;
     returnArray[1] = subnetMask2;
     if (returnArray[0].IP > returnArray[1].IP)
