@@ -32,7 +32,7 @@ static void usage(char *errorReason) { // many functions call back to this funct
     exit(0);
 }
 
-static void help() {
+static void help(void) {
     printf("This program takes in a series of arguments, the first being an IP address.\n\
 This IP address is used in conjunction with a subnet mask to calculate and display one or more subnets.\n\
 This program will display the following information:\n\
