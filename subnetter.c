@@ -11,19 +11,19 @@ typedef union { // data containing an IP address.
     unsigned char octets[4]; // per-octet IP. useful for IP construction.
 } ipaddr;
 
-char* programName;
-int binaryFlag = 0;
-int helpFlag = 0;
-int debug = 1;
-static char *(*IPtoString)(ipaddr);
-static char *(*ChangingIPtoString)(ipaddr, int);
-
 typedef struct subnetAttributes { // return type of function that calculates subnet data based on a subnet mask.
     unsigned long long int blockSize;
     unsigned long long int numberOfSubnets;
     int CIDRMask;
     unsigned int usableHosts;
 } subnetAttributes;
+
+char* programName;
+int binaryFlag = 0;
+int helpFlag = 0;
+int debug = 1;
+static char *(*IPtoString)(ipaddr);
+static char *(*ChangingIPtoString)(ipaddr, int);
 
 static void usage(char *errorReason) { // many functions call back to this function when they receive input that is not a valid IP, Subnet Mask, or CIDR Mask.
     printf("Usage: ./%s IP_ADDRESS SUBNET_OR_CIDR_MASK_1 SUBNET_OR_CIDR_MASK_2 <-b(inary)|-h(elp)>\n", programName);
