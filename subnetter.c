@@ -6,7 +6,7 @@
 #include <time.h>
 #include <math.h>
 
-typedef union { // data containing an IP address. 
+typedef union ipaddr { // data containing an IP address. 
     unsigned int IP; // represents IP as a 32-bit number. useful for IP addition.
     unsigned char octets[4]; // per-octet IP. useful for IP construction.
 } ipaddr;
