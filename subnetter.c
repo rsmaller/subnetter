@@ -50,14 +50,14 @@ void *smartMalloc(size_t size) {
 }
 
 static void usage(char *errorReason) { // many functions call back to this function when they receive input that is not a valid IP, Subnet Mask, or CIDR Mask.
-    printf("Usage: ./%s IP_ADDRESS SUBNET_OR_CIDR_MASK_1 SUBNET_OR_CIDR_MASK_2 <-b(inary)|-h(elp)>\n", programName);
+    fprintf(stdout, "Usage: ./%s IP_ADDRESS SUBNET_OR_CIDR_MASK_1 SUBNET_OR_CIDR_MASK_2 <-b(inary)|-h(elp)>\n", programName);
     if (debug)
-        printf("Error reason: %s\n", errorReason);
+        fprintf(stdout, "Error reason: %s\n", errorReason);
     exit(0);
 }
 
 static void help(void) {
-    printf("This program takes in a series of arguments, the first being an IP address.\n\
+    fprintf(stdout, "This program takes in a series of arguments, the first being an IP address.\n\
 This IP address is used in conjunction with a subnet mask to calculate and display one or more subnets.\n\
 This program will display the following information:\n\
     -The block size (number of IP addresses) of each subnet it generates\n\
@@ -124,7 +124,7 @@ static char *IPtoChangingRegularString(ipaddr IP, int CIDRMask) {
 
 // debug only
 // static void printIPDecimal(ipaddr IP) {
-//     printf("%u", IP.IP);
+//     fprintf(stdout, "%u", IP.IP);
 // }
 
 static char *octetToBinaryString(unsigned char intArg) {
@@ -342,19 +342,19 @@ static void printOutSubnet(ipaddr mainIP, ipaddr subnetMask) {
             startingIP.IP = networkIP.IP;
             broadcastIP.IP = networkIP.IP;
             endingIP.IP = networkIP.IP + 1;
-            printf("%s/%d:\n\t%s - %s\n", IPtoString(networkIP), CIDRMask, IPtoString(startingIP), IPtoString(endingIP));
+            fprintf(stdout, "%s/%d:\n\t%s - %s\n", IPtoString(networkIP), CIDRMask, IPtoString(startingIP), IPtoString(endingIP));
             break;
         case 32:
             startingIP.IP = networkIP.IP;
             broadcastIP.IP = networkIP.IP;
             endingIP.IP = broadcastIP.IP;
-            printf("%s/%d\n", IPtoString(networkIP), CIDRMask);
+            fprintf(stdout, "%s/%d\n", IPtoString(networkIP), CIDRMask);
             break;
         default:
             startingIP.IP = networkIP.IP + 1;
             broadcastIP.IP = networkIP.IP + (unsigned int)blockSize - 1;
             endingIP.IP = broadcastIP.IP - 1;
-            printf("%s/%d:\n\t%s - %s\n\t%s broadcast\n", IPtoString(networkIP), CIDRMask, IPtoString(startingIP), IPtoString(endingIP), IPtoString(broadcastIP));
+            fprintf(stdout, "%s/%d:\n\t%s - %s\n\t%s broadcast\n", IPtoString(networkIP), CIDRMask, IPtoString(startingIP), IPtoString(endingIP), IPtoString(broadcastIP));
             break;
     }
 }
@@ -370,17 +370,17 @@ static void VLSM(ipaddr mainIP, ipaddr subnetMask1, ipaddr subnetMask2) { // sub
     unsigned long long int numberOfSubnets = (unsigned long long int)1<<networkMagnitudeDifference;
     ipaddr mainNetworkIP;
     mainNetworkIP.IP = mainIP.IP & subnetMask1.IP;
-    printf("%llu Subnet(s) Total, %llu IP(s) Per Subnet, %u Usable Host(s) Per Subnet\n%s[/%d]", numberOfSubnets, subnet2BlockSize, subnet2UsableHosts, IPtoString(subnetMask1), subnet1Details.CIDRMask);
+    fprintf(stdout, "%llu Subnet(s) Total, %llu IP(s) Per Subnet, %u Usable Host(s) Per Subnet\n%s[/%d]", numberOfSubnets, subnet2BlockSize, subnet2UsableHosts, IPtoString(subnetMask1), subnet1Details.CIDRMask);
     if (subnetMask1.IP != subnetMask2.IP) {
-        printf(" -> %s[/%d]\n", IPtoString(subnetMask2), subnet2Details.CIDRMask); 
+        fprintf(stdout, " -> %s[/%d]\n", IPtoString(subnetMask2), subnet2Details.CIDRMask); 
     } else {
-        printf("\n");
+        fprintf(stdout, "\n");
     }
-    printf("%s/%d -> %s", IPtoString(mainNetworkIP), subnet1CIDRMask, ChangingIPtoString(mainIP, subnet2CIDRMask));
+    fprintf(stdout, "%s/%d -> %s", IPtoString(mainNetworkIP), subnet1CIDRMask, ChangingIPtoString(mainIP, subnet2CIDRMask));
     if (!binaryFlag) {
-        printf("/%d\n-------------------------------------------------------------------\n", subnet2CIDRMask);
+        fprintf(stdout, "/%d\n-------------------------------------------------------------------\n", subnet2CIDRMask);
     } else { 
-        printf("/%d\n-----------------------------------------------------------------------------------------\n", subnet2CIDRMask);
+        fprintf(stdout, "/%d\n-----------------------------------------------------------------------------------------\n", subnet2CIDRMask);
     }
     for (unsigned long long int i=0; i<numberOfSubnets; i++) {
         printOutSubnet(mainNetworkIP, subnetMask2);
@@ -448,6 +448,8 @@ int main(int argc, char *argv[]) {
     for (int i=0; i<freeArraySize; i++) {
         addressToFreeArray[i] = 0;
     }
+    char buffer[1024*32] = {0};
+	setvbuf(stdout, buffer, _IOFBF, 1024*32);
     programName = basename(argv[0]);
     checkArgsAndSetPointers(argc, argv);
     clock_t startingClock, endingClock;
@@ -464,6 +466,7 @@ int main(int argc, char *argv[]) {
     VLSM(mainIP, subnetMask1, subnetMask2);
     endingClock = clock();
     double timeTotal = (double)(endingClock - startingClock) / CLOCKS_PER_SEC;
-    printf("%f seconds used to subnet\n", timeTotal);
+    fprintf(stdout, "%f seconds used to subnet\n", timeTotal);
     freeFromArray(addressToFreeArray);
+    setvbuf(stdout, buffer, _IONBF, 1024*32);
 }
