@@ -62,8 +62,9 @@ exit(0);
 }
 
 static int getSignificantOctets(int CIDRMask) {
-    if (CIDRMask == 0)
+    if (CIDRMask == 0) {
         return 0;
+    }
     return (int)ceil((double)(CIDRMask / 8));
 }
 
@@ -193,10 +194,11 @@ static char *IPtoChangingBinaryString(ipaddr IP, int CIDRMask) {
 }
 
 static void verifyOctet(int IPOctet) {
-    if (IPOctet > 255) 
+    if (IPOctet > 255) {
         usage("IPOctet bigger than 255");
-    else if (IPOctet < 0) 
+    } else if (IPOctet < 0) {
         usage("IPOctet less than 0");
+    }
 }
 
 static int constructOctetFromString(char *IPString) { // converts a string into an IP octet after ensuring string is a valid octet.
@@ -220,11 +222,13 @@ static int* splitIntoOctets(char* IPString) {
             characterIndex = 0;
         }
     }
-    if (index != 3)
+    if (index != 3) {
         usage("Wrong number of dots in IP argument");
+    }
     int *returnOctetArray = (int *)malloc(sizeof(int)*4);
-    for (int i=0; i<4; i++)
+    for (int i=0; i<4; i++) {
         returnOctetArray[i] = constructOctetFromString(returnStringArray[i]);
+    }
     return returnOctetArray;
 }
 
@@ -263,17 +267,19 @@ static int getCIDRMask(ipaddr subnetMask) {
 
 static int isSubnetMask(ipaddr subnetMask) {
     int CIDRMask = getCIDRMask(subnetMask);
-    if (CIDRMask <= 32 && CIDRMask >= 0)
+    if (CIDRMask <= 32 && CIDRMask >= 0) {
         return 1;
-    else
+    } else {
         return 0;
+    }
 }
 
 static int isCIDRMask(int CIDRMask) {
-    if (CIDRMask <= 32 && CIDRMask >= 0)
+    if (CIDRMask <= 32 && CIDRMask >= 0) {
         return 1;
-    else   
+    } else {   
         return 0;
+    }
 }
 
 static ipaddr CIDRToSubnetMask(int CIDRMask) {
@@ -348,10 +354,11 @@ static void VLSM(ipaddr mainIP, ipaddr subnetMask1, ipaddr subnetMask2) { // sub
         printf("\n");
     }
     printf("%s/%d -> %s", IPtoString(mainNetworkIP), subnet1CIDRMask, ChangingIPtoString(mainIP, subnet2CIDRMask));
-    if (!binaryFlag)
+    if (!binaryFlag) {
         printf("/%d\n-------------------------------------------------------------------\n", subnet2CIDRMask);
-    else 
+    } else { 
         printf("/%d\n-----------------------------------------------------------------------------------------\n", subnet2CIDRMask);
+    }
     for (unsigned long long int i=0; i<numberOfSubnets; i++) {
         printOutSubnet(mainNetworkIP, subnetMask2);
         mainNetworkIP.IP += (unsigned int)subnet2BlockSize;
@@ -382,8 +389,7 @@ static ipaddr *getSubnetMasksFromArguments(int argc, char *argv[]) {
     else
         if (isCIDRMask(atoi(argv[3]))) {
             subnetMask2 = CIDRToSubnetMask(atoi(argv[3]));
-        }
-        else {
+        } else {
             subnetMask2 = constructIP(argv[3]);
             if (!isSubnetMask(subnetMask2))
                 subnetMask2.IP = subnetMask1.IP;
