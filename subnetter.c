@@ -7,22 +7,22 @@
 #include <math.h>
 
 typedef union { // data containing an IP address. 
-    unsigned long long int IP; // represents IP as a 32-bit number. useful for IP addition.
-    unsigned char octets[4]; // per-octet IP. useful for IP construction.
+    uint32_t IP; // represents IP as a 32-bit number. useful for IP addition.
+    uint8_t octets[4]; // per-octet IP. useful for IP construction.
 } ipaddr;
 
 char* programName;
 int binaryFlag = 0;
 int helpFlag = 0;
 int debug = 1;
-static void (*printIP)(ipaddr);
-static void (*printChangingIP)(ipaddr, unsigned int);
+static char *(*IPtoString)(ipaddr);
+static char *(*ChangingIPtoString)(ipaddr, int);
 
 typedef struct subnetAttributes { // return type of function that calculates subnet data based on a subnet mask.
     unsigned long long int blockSize;
     unsigned long long int numberOfSubnets;
-    unsigned int CIDRMask;
-    unsigned int usableHosts;
+    int CIDRMask;
+    int usableHosts;
 } subnetAttributes;
 
 static void usage(char *errorReason) { // many functions call back to this function when they receive input that is not a valid IP, Subnet Mask, or CIDR Mask.
@@ -61,33 +61,40 @@ The above commands would output the following information (Note that the informa
 exit(0);
 }
 
-static unsigned int getSignificantOctets(unsigned int CIDRMask) {
+static int getSignificantOctets(int CIDRMask) {
     if (CIDRMask == 0)
         return 0;
-    return (unsigned int)ceil((double)(CIDRMask / 8));
+    return (int)ceil((double)(CIDRMask / 8));
 }
 
-static void printIPRegular(ipaddr IP) {
-    printf("%d.%d.%d.%d", IP.octets[3], IP.octets[2], IP.octets[1], IP.octets[0]);
+static char *IPtoRegularString(ipaddr IP) {
+    char *returnValue = (char *)malloc((size_t)16);
+    sprintf(returnValue, "%d.%d.%d.%d", IP.octets[3], IP.octets[2], IP.octets[1], IP.octets[0]);
+    return returnValue;
 }
 
-static void printChangingIPRegular(ipaddr IP, unsigned int CIDRMask) {
-    unsigned int significantOctets = getSignificantOctets(CIDRMask);
-    unsigned int changingHostOctets = 4 - significantOctets;
-    unsigned int octetIndex = 3;
-    for (unsigned int i=0; i<significantOctets; i++) {
-        printf("%d", IP.octets[octetIndex]);
-        if (i < 3)
-            printf(".");
-        octetIndex -= 1;
+static char *IPtoChangingRegularString(ipaddr IP, int CIDRMask) {
+    char *returnValue = (char *)malloc((size_t)16);
+    int significantOctets = getSignificantOctets(CIDRMask);
+    int changingHostOctets = 4 - significantOctets;
+    switch (changingHostOctets){
+        case 4:
+            sprintf(returnValue, "x.x.x.x");
+            break;
+        case 3:
+            sprintf(returnValue, "%d.x.x.x", IP.octets[3]);
+            break;
+        case 2:
+            sprintf(returnValue, "%d.%d.x.x", IP.octets[3], IP.octets[2]);
+            break;
+        case 1:
+            sprintf(returnValue, "%d.%d.%d.x", IP.octets[3], IP.octets[2], IP.octets[1]);
+            break;
+        case 0:
+            sprintf(returnValue, "%d.%d.%d.%d", IP.octets[3], IP.octets[2], IP.octets[1], IP.octets[0]);
+            break;
     }
-    if (changingHostOctets) {
-        for (unsigned int i=0; i<changingHostOctets; i++) {
-            printf("x");
-            if (i < (changingHostOctets - 1))
-                printf(".");
-        }
-    }
+    return returnValue;
 }
 
 // debug only
@@ -95,8 +102,11 @@ static void printChangingIPRegular(ipaddr IP, unsigned int CIDRMask) {
 //     printf("%u", IP.IP);
 // }
 
-static void printEightBitBinary(unsigned char intArg) {
-    char binaryForm[9] = "";
+static char *octetToBinaryString(unsigned char intArg) {
+    char *binaryForm = (char *)malloc((size_t)9);
+    for (int i=0; i<9; i++) {
+        binaryForm[i] = 0;
+    }
     int bitshiftOperand = ((int)sizeof(unsigned char) * 8) - 1;
     while (bitshiftOperand >= 0) {
         if (intArg >= (unsigned char)1<<bitshiftOperand) {
@@ -107,12 +117,37 @@ static void printEightBitBinary(unsigned char intArg) {
         }
         bitshiftOperand--;
     }
-    printf("%s", binaryForm);
+    return binaryForm;
 }
 
-static void printIPBinary(ipaddr IP) {
-    unsigned int IPNumber = (unsigned int)IP.IP;
-    char binaryForm[36] = "";
+static char *changingOctetToBinaryString(unsigned char intArg, int changingBits) {
+    char *binaryForm = (char *)malloc((size_t)9);
+    for (int i=0; i<9; i++) {
+        binaryForm[i] = 0;
+    }
+    int unchangingBits = 8 - changingBits;
+    int bitshiftOperand = ((int)sizeof(unsigned char) * 8) - 1;
+    for (int i=0; i<unchangingBits; i++) {
+        if (intArg >= (unsigned char)1<<bitshiftOperand) {
+            intArg -= ((unsigned char)1<<bitshiftOperand);
+            strcat(binaryForm, "1");
+        } else {
+            strcat(binaryForm, "0");
+        }
+        bitshiftOperand--;
+    }
+    for (int i=0; i<changingBits; i++) {
+        strcat(binaryForm, "x");
+    }
+    return binaryForm;
+}
+
+static char *IPtoBinaryString(ipaddr IP) {
+    unsigned int IPNumber = IP.IP;
+    char *binaryForm = (char *)malloc((size_t)36);
+    for (int i=0; i<36; i++) {
+        binaryForm[i] = 0;
+    }
     int originalBitshiftOperand = ((int)sizeof(unsigned int) * 8) - 1;
     int bitshiftOperand = originalBitshiftOperand;
     while (bitshiftOperand >= 0) {
@@ -127,26 +162,32 @@ static void printIPBinary(ipaddr IP) {
         }
         bitshiftOperand--;
     }
-    printf("%s", binaryForm);
+    return binaryForm;
 }
 
-static void printChangingIPBinary(ipaddr IP, unsigned int CIDRMask) {
-    unsigned int significantOctets = getSignificantOctets(CIDRMask);
-    unsigned int changingHostOctets = 4 - significantOctets;
-    unsigned int octetIndex = 3;
-    for (unsigned int i=0; i<significantOctets; i++) {
-        printEightBitBinary(IP.octets[octetIndex]);
-        if (i < 3)
-            printf(".");
-        octetIndex -= 1;
+static char *IPtoChangingBinaryString(ipaddr IP, int CIDRMask) {
+    char *returnValue = (char *)malloc((size_t)36);
+    int significantOctets = getSignificantOctets(CIDRMask);
+    int changingHostOctets = 4 - significantOctets;
+    int changingBits = 32 - CIDRMask;
+    switch (changingHostOctets){
+        case 4:
+            sprintf(returnValue, "%s.xxxxxxxx.xxxxxxxx.xxxxxxxx", changingOctetToBinaryString(IP.octets[3], changingBits - 24));
+            break;
+        case 3:
+            sprintf(returnValue, "%s.%s.xxxxxxxx.xxxxxxxx", octetToBinaryString(IP.octets[3]), changingOctetToBinaryString(IP.octets[2], changingBits - 16));
+            break;
+        case 2:
+            sprintf(returnValue, "%s.%s.%s.xxxxxxxx", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), changingOctetToBinaryString(IP.octets[1], changingBits - 8));
+            break;
+        case 1:
+            sprintf(returnValue, "%s.%s.%s.%s", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), octetToBinaryString(IP.octets[1]), changingOctetToBinaryString(IP.octets[0], changingBits));
+            break;
+        case 0:
+            sprintf(returnValue, "%s.%s.%s.%s", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), octetToBinaryString(IP.octets[1]), octetToBinaryString(IP.octets[0]));
+            break;
     }
-    if (changingHostOctets) {
-        for (unsigned int i=0; i<changingHostOctets; i++) {
-            printf("xxxxxxxx");
-            if (i < (changingHostOctets - 1))
-                printf(".");
-        }
-    }
+    return returnValue;
 }
 
 static void verifyOctet(int IPOctet) {
@@ -164,7 +205,7 @@ static int constructOctetFromString(char *IPString) { // converts a string into 
 
 static int* splitIntoOctets(char* IPString) {
     char returnStringArray[4][4] = {"", "", "", ""};
-    int stringLength = (int)strlen(IPString);
+    int stringLength = strlen(IPString);
     int index = 0;
     int characterIndex = 0;
     for (int i=0; i<stringLength; i++) {
@@ -188,15 +229,15 @@ static int* splitIntoOctets(char* IPString) {
 static ipaddr constructIP(char* IPString) {
     ipaddr returnIP;
     int *newOctets = splitIntoOctets(IPString);
-    returnIP.octets[0] = (unsigned char)newOctets[3];
-    returnIP.octets[1] = (unsigned char)newOctets[2];
-    returnIP.octets[2] = (unsigned char)newOctets[1];
-    returnIP.octets[3] = (unsigned char)newOctets[0];
+    returnIP.octets[0] = newOctets[3];
+    returnIP.octets[1] = newOctets[2];
+    returnIP.octets[2] = newOctets[1];
+    returnIP.octets[3] = newOctets[0];
     free(newOctets);
     return returnIP;
 }
 
-static unsigned int getCIDRMask(ipaddr subnetMask) {
+static int getCIDRMask(ipaddr subnetMask) {
     switch (subnetMask.IP) {
         case 0:          return 0;  case 2147483648: return 1; 
         case 3221225472: return 2;  case 3758096384: return 3;
@@ -214,12 +255,12 @@ static unsigned int getCIDRMask(ipaddr subnetMask) {
         case 4294967232: return 26; case 4294967264: return 27;
         case 4294967280: return 28; case 4294967288: return 29;
         case 4294967292: return 30; case 4294967294: return 31;
-        case 4294967295: return 32; default:         return 255;
+        case 4294967295: return 32; default:         return -1;
     }
 }
 
 static int isSubnetMask(ipaddr subnetMask) {
-    unsigned int CIDRMask = getCIDRMask(subnetMask);
+    int CIDRMask = getCIDRMask(subnetMask);
     if (CIDRMask <= 32 && CIDRMask >= 0)
         return 1;
     else
@@ -237,17 +278,17 @@ static ipaddr CIDRToSubnetMask(int CIDRMask) {
     ipaddr returnIP;
     int invertedMask = 32 - CIDRMask;
     unsigned long long int myUnsignedInt1 = ((unsigned long long int)1<<invertedMask) - 1;
-    returnIP.IP = (unsigned long long int)~myUnsignedInt1;
+    returnIP.IP = (uint32_t)~myUnsignedInt1;
     return returnIP;
 }
 
 static subnetAttributes getSubnetInfo(ipaddr subnetMask) {
-    unsigned int CIDRMask = getCIDRMask(subnetMask);
+    int CIDRMask = getCIDRMask(subnetMask);
     unsigned long long int blockSize = (unsigned long long int)1<<(32-CIDRMask);
     unsigned long long int numberOfSubnets = (unsigned long long int)1<<CIDRMask;
-    unsigned int usableHosts = 0;
+    int usableHosts = 0;
     if (blockSize > 2)
-        usableHosts = (unsigned int)(blockSize - 2);
+        usableHosts = blockSize - 2;
     subnetAttributes returnValue;
     returnValue.blockSize = blockSize;
     returnValue.numberOfSubnets = numberOfSubnets;
@@ -262,7 +303,7 @@ static void printOutSubnet(ipaddr mainIP, ipaddr subnetMask) {
     ipaddr endingIP;
     ipaddr broadcastIP;
     subnetAttributes subnetAttributes = getSubnetInfo(subnetMask);
-    unsigned int CIDRMask = subnetAttributes.CIDRMask;
+    int CIDRMask = subnetAttributes.CIDRMask;
     unsigned long long int blockSize = subnetAttributes.blockSize;
     networkIP.IP = mainIP.IP & subnetMask.IP;
     switch (CIDRMask) {
@@ -270,61 +311,41 @@ static void printOutSubnet(ipaddr mainIP, ipaddr subnetMask) {
             startingIP.IP = networkIP.IP;
             broadcastIP.IP = networkIP.IP;
             endingIP.IP = networkIP.IP + 1;
-            printIP(networkIP); printf("/%d", CIDRMask);
-            printf(":\n\t"); 
-            printIP(startingIP);
-            printf(" - ");
-            printIP(endingIP);
-            printf("\n");
+            printf("%s/%d:\n\t%s - %s\n", IPtoString(networkIP), CIDRMask, IPtoString(startingIP), IPtoString(endingIP));
             break;
         case 32:
             startingIP.IP = networkIP.IP;
             broadcastIP.IP = networkIP.IP;
             endingIP.IP = broadcastIP.IP;
-            printIP(networkIP); printf("/%d", CIDRMask);
-            printf("\n");
+            printf("%s/%d\n", IPtoString(networkIP), CIDRMask);
             break;
         default:
             startingIP.IP = networkIP.IP + 1;
             broadcastIP.IP = networkIP.IP + blockSize - 1;
             endingIP.IP = broadcastIP.IP - 1;
-            printIP(networkIP); printf("/%d", CIDRMask);
-            printf(":\n\t"); 
-            printIP(startingIP);
-            printf(" - ");
-            printIP(endingIP);
-            printf("\n");
-            printf("\t");
-            printIP(broadcastIP);
-            printf(" broadcast\n");
+            printf("%s/%d:\n\t%s - %s\n\t%s broadcast\n", IPtoString(networkIP), CIDRMask, IPtoString(startingIP), IPtoString(endingIP), IPtoString(broadcastIP));
             break;
     }
 }
 
 static void VLSM(ipaddr mainIP, ipaddr subnetMask1, ipaddr subnetMask2) { // subnetMask1 should contain larger block sizes than subnetMask2
     subnetAttributes subnet1Details = getSubnetInfo(subnetMask1);
-    unsigned int subnet1CIDRMask = subnet1Details.CIDRMask;
+    int subnet1CIDRMask = subnet1Details.CIDRMask;
     subnetAttributes subnet2Details = getSubnetInfo(subnetMask2);
-    unsigned int subnet2CIDRMask = subnet2Details.CIDRMask;
+    int subnet2CIDRMask = subnet2Details.CIDRMask;
     unsigned long long int subnet2BlockSize = subnet2Details.blockSize;
     unsigned long long int subnet2UsableHosts = subnet2Details.usableHosts;
-    unsigned int networkMagnitudeDifference = subnet2CIDRMask - subnet1CIDRMask;
+    int networkMagnitudeDifference = subnet2CIDRMask - subnet1CIDRMask;
     unsigned long long int numberOfSubnets = (unsigned long long int)1<<networkMagnitudeDifference;
     ipaddr mainNetworkIP;
     mainNetworkIP.IP = mainIP.IP & subnetMask1.IP;
-    printf("%lld Subnet(s) Total, %lld IP(s) Per Subnet, %lld Usable Host(s) Per Subnet\n", numberOfSubnets, subnet2BlockSize, subnet2UsableHosts);
-    printIP(subnetMask1);
-    printf("[/%d]", subnet1Details.CIDRMask);
+    printf("%lld Subnet(s) Total, %lld IP(s) Per Subnet, %lld Usable Host(s) Per Subnet\n%s[/%d]", numberOfSubnets, subnet2BlockSize, subnet2UsableHosts, IPtoString(subnetMask1), subnet1Details.CIDRMask);
     if (subnetMask1.IP != subnetMask2.IP) {
-        printf(" -> ");
-        printIP(subnetMask2);
-        printf("[/%d]\n", subnet2Details.CIDRMask);    
+        printf(" -> %s[/%d]\n", IPtoString(subnetMask2), subnet2Details.CIDRMask); 
     } else {
         printf("\n");
     }
-    printIP(mainNetworkIP);
-    printf("/%d -> ", subnet1CIDRMask);
-    printChangingIP(mainIP, subnet2CIDRMask);
+    printf("%s/%d -> %s", IPtoString(mainNetworkIP), subnet1CIDRMask, ChangingIPtoString(mainIP, subnet2CIDRMask));
     if (!binaryFlag)
         printf("/%d\n-------------------------------------------------------------------\n", subnet2CIDRMask);
     else 
@@ -383,11 +404,11 @@ static void checkArgsAndSetPointers(int argc, char *argv[]) {
         help();
     }
     if (binaryFlag) {
-        printIP = &printIPBinary;
-        printChangingIP = &printChangingIPBinary;
+        IPtoString = &IPtoBinaryString;
+        ChangingIPtoString = &IPtoChangingBinaryString;
     } else {
-        printIP = &printIPRegular;
-        printChangingIP = &printChangingIPRegular;
+        IPtoString = &IPtoRegularString;
+        ChangingIPtoString = &IPtoChangingRegularString;
     }
 }
 
