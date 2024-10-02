@@ -7,8 +7,8 @@
 #include <math.h>
 
 typedef union { // data containing an IP address. 
-    uint32_t IP; // represents IP as a 32-bit number. useful for IP addition.
-    uint8_t octets[4]; // per-octet IP. useful for IP construction.
+    unsigned int IP; // represents IP as a 32-bit number. useful for IP addition.
+    unsigned char octets[4]; // per-octet IP. useful for IP construction.
 } ipaddr;
 
 char* programName;
@@ -22,7 +22,7 @@ typedef struct subnetAttributes { // return type of function that calculates sub
     unsigned long long int blockSize;
     unsigned long long int numberOfSubnets;
     int CIDRMask;
-    int usableHosts;
+    unsigned int usableHosts;
 } subnetAttributes;
 
 static void usage(char *errorReason) { // many functions call back to this function when they receive input that is not a valid IP, Subnet Mask, or CIDR Mask.
@@ -103,14 +103,15 @@ static char *IPtoChangingRegularString(ipaddr IP, int CIDRMask) {
 // }
 
 static char *octetToBinaryString(unsigned char intArg) {
+    int safeInteger = (int)intArg;
     char *binaryForm = (char *)malloc((size_t)9);
     for (int i=0; i<9; i++) {
         binaryForm[i] = 0;
     }
     int bitshiftOperand = ((int)sizeof(unsigned char) * 8) - 1;
     while (bitshiftOperand >= 0) {
-        if (intArg >= (unsigned char)1<<bitshiftOperand) {
-            intArg -= ((unsigned char)1<<bitshiftOperand);
+        if (safeInteger >= 1<<bitshiftOperand) {
+            safeInteger -= 1<<bitshiftOperand;
             strcat(binaryForm, "1");
         } else {
             strcat(binaryForm, "0");
@@ -121,6 +122,7 @@ static char *octetToBinaryString(unsigned char intArg) {
 }
 
 static char *changingOctetToBinaryString(unsigned char intArg, int changingBits) {
+    int safeInteger = (int)intArg;
     char *binaryForm = (char *)malloc((size_t)9);
     for (int i=0; i<9; i++) {
         binaryForm[i] = 0;
@@ -128,8 +130,8 @@ static char *changingOctetToBinaryString(unsigned char intArg, int changingBits)
     int unchangingBits = 8 - changingBits;
     int bitshiftOperand = ((int)sizeof(unsigned char) * 8) - 1;
     for (int i=0; i<unchangingBits; i++) {
-        if (intArg >= (unsigned char)1<<bitshiftOperand) {
-            intArg -= ((unsigned char)1<<bitshiftOperand);
+        if (safeInteger >= 1<<bitshiftOperand) {
+            safeInteger -= 1<<bitshiftOperand;
             strcat(binaryForm, "1");
         } else {
             strcat(binaryForm, "0");
@@ -205,7 +207,7 @@ static int constructOctetFromString(char *IPString) { // converts a string into 
 
 static int* splitIntoOctets(char* IPString) {
     char returnStringArray[4][4] = {"", "", "", ""};
-    int stringLength = strlen(IPString);
+    int stringLength = (int)strlen(IPString);
     int index = 0;
     int characterIndex = 0;
     for (int i=0; i<stringLength; i++) {
@@ -229,10 +231,10 @@ static int* splitIntoOctets(char* IPString) {
 static ipaddr constructIP(char* IPString) {
     ipaddr returnIP;
     int *newOctets = splitIntoOctets(IPString);
-    returnIP.octets[0] = newOctets[3];
-    returnIP.octets[1] = newOctets[2];
-    returnIP.octets[2] = newOctets[1];
-    returnIP.octets[3] = newOctets[0];
+    returnIP.octets[0] = (unsigned char)newOctets[3];
+    returnIP.octets[1] = (unsigned char)newOctets[2];
+    returnIP.octets[2] = (unsigned char)newOctets[1];
+    returnIP.octets[3] = (unsigned char)newOctets[0];
     free(newOctets);
     return returnIP;
 }
@@ -286,9 +288,9 @@ static subnetAttributes getSubnetInfo(ipaddr subnetMask) {
     int CIDRMask = getCIDRMask(subnetMask);
     unsigned long long int blockSize = (unsigned long long int)1<<(32-CIDRMask);
     unsigned long long int numberOfSubnets = (unsigned long long int)1<<CIDRMask;
-    int usableHosts = 0;
+    unsigned int usableHosts = 0;
     if (blockSize > 2)
-        usableHosts = blockSize - 2;
+        usableHosts = (unsigned int)blockSize - 2;
     subnetAttributes returnValue;
     returnValue.blockSize = blockSize;
     returnValue.numberOfSubnets = numberOfSubnets;
@@ -321,7 +323,7 @@ static void printOutSubnet(ipaddr mainIP, ipaddr subnetMask) {
             break;
         default:
             startingIP.IP = networkIP.IP + 1;
-            broadcastIP.IP = networkIP.IP + blockSize - 1;
+            broadcastIP.IP = networkIP.IP + (unsigned int)blockSize - 1;
             endingIP.IP = broadcastIP.IP - 1;
             printf("%s/%d:\n\t%s - %s\n\t%s broadcast\n", IPtoString(networkIP), CIDRMask, IPtoString(startingIP), IPtoString(endingIP), IPtoString(broadcastIP));
             break;
@@ -334,12 +336,12 @@ static void VLSM(ipaddr mainIP, ipaddr subnetMask1, ipaddr subnetMask2) { // sub
     subnetAttributes subnet2Details = getSubnetInfo(subnetMask2);
     int subnet2CIDRMask = subnet2Details.CIDRMask;
     unsigned long long int subnet2BlockSize = subnet2Details.blockSize;
-    unsigned long long int subnet2UsableHosts = subnet2Details.usableHosts;
+    unsigned int subnet2UsableHosts = subnet2Details.usableHosts;
     int networkMagnitudeDifference = subnet2CIDRMask - subnet1CIDRMask;
     unsigned long long int numberOfSubnets = (unsigned long long int)1<<networkMagnitudeDifference;
     ipaddr mainNetworkIP;
     mainNetworkIP.IP = mainIP.IP & subnetMask1.IP;
-    printf("%lld Subnet(s) Total, %lld IP(s) Per Subnet, %lld Usable Host(s) Per Subnet\n%s[/%d]", numberOfSubnets, subnet2BlockSize, subnet2UsableHosts, IPtoString(subnetMask1), subnet1Details.CIDRMask);
+    printf("%llu Subnet(s) Total, %llu IP(s) Per Subnet, %u Usable Host(s) Per Subnet\n%s[/%d]", numberOfSubnets, subnet2BlockSize, subnet2UsableHosts, IPtoString(subnetMask1), subnet1Details.CIDRMask);
     if (subnetMask1.IP != subnetMask2.IP) {
         printf(" -> %s[/%d]\n", IPtoString(subnetMask2), subnet2Details.CIDRMask); 
     } else {
@@ -352,7 +354,7 @@ static void VLSM(ipaddr mainIP, ipaddr subnetMask1, ipaddr subnetMask2) { // sub
         printf("/%d\n-----------------------------------------------------------------------------------------\n", subnet2CIDRMask);
     for (unsigned long long int i=0; i<numberOfSubnets; i++) {
         printOutSubnet(mainNetworkIP, subnetMask2);
-        mainNetworkIP.IP += subnet2BlockSize;
+        mainNetworkIP.IP += (unsigned int)subnet2BlockSize;
     }
 }
 
