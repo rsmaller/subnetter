@@ -24,6 +24,30 @@ int helpFlag = 0;
 int debug = 1;
 static char *(*IPtoString)(ipaddr);
 static char *(*ChangingIPtoString)(ipaddr, int);
+int currentFreeArrayIndex = 0;
+int freeArraySize = 4;
+void **addressToFreeArray;
+
+void freeFromArray(void **arrayToFree) {
+	for (int i=0; i<currentFreeArrayIndex; i++) {
+		free(arrayToFree[i]);
+	}
+	free(arrayToFree);
+}
+
+void *smartMalloc(size_t size) {
+	void *mallocedPointer = malloc(size);
+    char *mallocedCursor = (char *)mallocedPointer;
+    for (int i=0; i<(int)size; i++) {
+        mallocedCursor[i] = 0;
+    }
+    if (currentFreeArrayIndex >= (int)(freeArraySize / 2)) {
+        freeArraySize *= 2;
+        addressToFreeArray = (void **)realloc(addressToFreeArray, sizeof(void *) * (unsigned long)freeArraySize);
+    }
+	addressToFreeArray[currentFreeArrayIndex++] = mallocedPointer;
+	return mallocedPointer;
+}
 
 static void usage(char *errorReason) { // many functions call back to this function when they receive input that is not a valid IP, Subnet Mask, or CIDR Mask.
     printf("Usage: ./%s IP_ADDRESS SUBNET_OR_CIDR_MASK_1 SUBNET_OR_CIDR_MASK_2 <-b(inary)|-h(elp)>\n", programName);
@@ -69,13 +93,13 @@ static int getSignificantOctets(int CIDRMask) {
 }
 
 static char *IPtoRegularString(ipaddr IP) {
-    char *returnValue = (char *)malloc((size_t)16);
+    char *returnValue = (char *)smartMalloc((size_t)16);
     sprintf(returnValue, "%d.%d.%d.%d", IP.octets[3], IP.octets[2], IP.octets[1], IP.octets[0]);
     return returnValue;
 }
 
 static char *IPtoChangingRegularString(ipaddr IP, int CIDRMask) {
-    char *returnValue = (char *)malloc((size_t)16);
+    char *returnValue = (char *)smartMalloc((size_t)16);
     int significantOctets = getSignificantOctets(CIDRMask);
     int changingHostOctets = 4 - significantOctets;
     switch (changingHostOctets){
@@ -105,7 +129,7 @@ static char *IPtoChangingRegularString(ipaddr IP, int CIDRMask) {
 
 static char *octetToBinaryString(unsigned char intArg) {
     int safeInteger = (int)intArg;
-    char *binaryForm = (char *)malloc((size_t)9);
+    char *binaryForm = (char *)smartMalloc((size_t)9);
     for (int i=0; i<9; i++) {
         binaryForm[i] = 0;
     }
@@ -124,7 +148,7 @@ static char *octetToBinaryString(unsigned char intArg) {
 
 static char *changingOctetToBinaryString(unsigned char intArg, int changingBits) {
     int safeInteger = (int)intArg;
-    char *binaryForm = (char *)malloc((size_t)9);
+    char *binaryForm = (char *)smartMalloc((size_t)9);
     for (int i=0; i<9; i++) {
         binaryForm[i] = 0;
     }
@@ -147,7 +171,7 @@ static char *changingOctetToBinaryString(unsigned char intArg, int changingBits)
 
 static char *IPtoBinaryString(ipaddr IP) {
     unsigned int IPNumber = IP.IP;
-    char *binaryForm = (char *)malloc((size_t)36);
+    char *binaryForm = (char *)smartMalloc((size_t)36);
     for (int i=0; i<36; i++) {
         binaryForm[i] = 0;
     }
@@ -169,7 +193,7 @@ static char *IPtoBinaryString(ipaddr IP) {
 }
 
 static char *IPtoChangingBinaryString(ipaddr IP, int CIDRMask) {
-    char *returnValue = (char *)malloc((size_t)36);
+    char *returnValue = (char *)smartMalloc((size_t)36);
     int significantOctets = getSignificantOctets(CIDRMask);
     int changingHostOctets = 4 - significantOctets;
     int changingBits = 32 - CIDRMask;
@@ -225,7 +249,7 @@ static int* splitIntoOctets(char* IPString) {
     if (index != 3) {
         usage("Wrong number of dots in IP argument");
     }
-    int *returnOctetArray = (int *)malloc(sizeof(int)*4);
+    int *returnOctetArray = (int *)smartMalloc(sizeof(int)*4);
     for (int i=0; i<4; i++) {
         returnOctetArray[i] = constructOctetFromString(returnStringArray[i]);
     }
@@ -239,7 +263,6 @@ static ipaddr constructIP(char* IPString) {
     returnIP.octets[1] = (unsigned char)newOctets[2];
     returnIP.octets[2] = (unsigned char)newOctets[1];
     returnIP.octets[3] = (unsigned char)newOctets[0];
-    free(newOctets);
     return returnIP;
 }
 
@@ -373,7 +396,7 @@ static void verifyIPArguments(int argc, char *argv[]) {
 }
 
 static ipaddr *getSubnetMasksFromArguments(int argc, char *argv[]) {
-    ipaddr *returnArray = (ipaddr *)malloc(sizeof(ipaddr) * 2);
+    ipaddr *returnArray = (ipaddr *)smartMalloc(sizeof(ipaddr) * 2);
     ipaddr subnetMask1;
     if (isCIDRMask(atoi(argv[2]))) {
         subnetMask1 = CIDRToSubnetMask(atoi(argv[2]));
@@ -421,6 +444,10 @@ static void checkArgsAndSetPointers(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+    addressToFreeArray = (void **)malloc(sizeof(void *) * (unsigned long)freeArraySize);
+    for (int i=0; i<freeArraySize; i++) {
+        addressToFreeArray[i] = 0;
+    }
     programName = basename(argv[0]);
     checkArgsAndSetPointers(argc, argv);
     clock_t startingClock, endingClock;
@@ -431,7 +458,6 @@ int main(int argc, char *argv[]) {
     ipaddr *subnetArray = getSubnetMasksFromArguments(argc, argv);
     ipaddr subnetMask1 = subnetArray[0];
     ipaddr subnetMask2 = subnetArray[1];
-    free(subnetArray);
     if (subnetMask1.IP > subnetMask2.IP)
         usage("First argument has smaller block size than second argument");
     startingClock = clock();
@@ -439,4 +465,5 @@ int main(int argc, char *argv[]) {
     endingClock = clock();
     double timeTotal = (double)(endingClock - startingClock) / CLOCKS_PER_SEC;
     printf("%f seconds used to subnet\n", timeTotal);
+    freeFromArray(addressToFreeArray);
 }
