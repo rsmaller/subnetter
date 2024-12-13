@@ -94,7 +94,7 @@ static int getSignificantOctets(int CIDRMask) {
 
 static char *IPtoRegularString(ipaddr IP) {
     char *returnValue = (char *)smartMalloc((size_t)16);
-    sprintf(returnValue, "%d.%d.%d.%d", IP.octets[3], IP.octets[2], IP.octets[1], IP.octets[0]);
+    snprintf(returnValue, sizeof(char) * 16, "%d.%d.%d.%d", IP.octets[3], IP.octets[2], IP.octets[1], IP.octets[0]);
     return returnValue;
 }
 
@@ -104,19 +104,19 @@ static char *IPtoChangingRegularString(ipaddr IP, int CIDRMask) {
     int changingHostOctets = 4 - significantOctets;
     switch (changingHostOctets){
         case 4:
-            sprintf(returnValue, "x.x.x.x");
+            snprintf(returnValue, sizeof(char) * 16, "x.x.x.x");
             break;
         case 3:
-            sprintf(returnValue, "%d.x.x.x", IP.octets[3]);
+            snprintf(returnValue, sizeof(char) * 16, "%d.x.x.x", IP.octets[3]);
             break;
         case 2:
-            sprintf(returnValue, "%d.%d.x.x", IP.octets[3], IP.octets[2]);
+            snprintf(returnValue, sizeof(char) * 16, "%d.%d.x.x", IP.octets[3], IP.octets[2]);
             break;
         case 1:
-            sprintf(returnValue, "%d.%d.%d.x", IP.octets[3], IP.octets[2], IP.octets[1]);
+            snprintf(returnValue, sizeof(char) * 16, "%d.%d.%d.x", IP.octets[3], IP.octets[2], IP.octets[1]);
             break;
         case 0:
-            sprintf(returnValue, "%d.%d.%d.%d", IP.octets[3], IP.octets[2], IP.octets[1], IP.octets[0]);
+            snprintf(returnValue, sizeof(char) * 16, "%d.%d.%d.%d", IP.octets[3], IP.octets[2], IP.octets[1], IP.octets[0]);
             break;
     }
     return returnValue;
@@ -199,19 +199,19 @@ static char *IPtoChangingBinaryString(ipaddr IP, int CIDRMask) {
     int changingBits = 32 - CIDRMask;
     switch (changingHostOctets){
         case 4:
-            sprintf(returnValue, "%s.xxxxxxxx.xxxxxxxx.xxxxxxxx", changingOctetToBinaryString(IP.octets[3], changingBits - 24));
+            snprintf(returnValue, sizeof(char) * 36, "%s.xxxxxxxx.xxxxxxxx.xxxxxxxx", changingOctetToBinaryString(IP.octets[3], changingBits - 24));
             break;
         case 3:
-            sprintf(returnValue, "%s.%s.xxxxxxxx.xxxxxxxx", octetToBinaryString(IP.octets[3]), changingOctetToBinaryString(IP.octets[2], changingBits - 16));
+            snprintf(returnValue, sizeof(char) * 36, "%s.%s.xxxxxxxx.xxxxxxxx", octetToBinaryString(IP.octets[3]), changingOctetToBinaryString(IP.octets[2], changingBits - 16));
             break;
         case 2:
-            sprintf(returnValue, "%s.%s.%s.xxxxxxxx", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), changingOctetToBinaryString(IP.octets[1], changingBits - 8));
+            snprintf(returnValue, sizeof(char) * 36, "%s.%s.%s.xxxxxxxx", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), changingOctetToBinaryString(IP.octets[1], changingBits - 8));
             break;
         case 1:
-            sprintf(returnValue, "%s.%s.%s.%s", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), octetToBinaryString(IP.octets[1]), changingOctetToBinaryString(IP.octets[0], changingBits));
+            snprintf(returnValue, sizeof(char) * 36, "%s.%s.%s.%s", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), octetToBinaryString(IP.octets[1]), changingOctetToBinaryString(IP.octets[0], changingBits));
             break;
         case 0:
-            sprintf(returnValue, "%s.%s.%s.%s", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), octetToBinaryString(IP.octets[1]), octetToBinaryString(IP.octets[0]));
+            snprintf(returnValue, sizeof(char) * 36, "%s.%s.%s.%s", octetToBinaryString(IP.octets[3]), octetToBinaryString(IP.octets[2]), octetToBinaryString(IP.octets[1]), octetToBinaryString(IP.octets[0]));
             break;
     }
     return returnValue;
